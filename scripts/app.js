@@ -45,10 +45,8 @@ async function loadTransformers() {
           throw new Error('pipeline missing in module exports');
         }
         console.log('[loader] success', url, 'exports=', Object.keys(mod));
-        mod.__TRANSFORMERS_CDN__ = url;
-        mod.__TRANSFORMERS_VER__ = v;
         hide(ovLib);
-        return mod;
+        return { mod, cdn: url, ver: v };
       } catch (e) {
         console.warn('[loader] failed', url, e);
         lastErr = e;
@@ -60,7 +58,13 @@ async function loadTransformers() {
   throw lastErr || new Error('Unable to load @xenova/transformers from all CDNs/versions');
 }
 
-const { pipeline, env, version, __TRANSFORMERS_CDN__, __TRANSFORMERS_VER__ } = await loadTransformers();
+const {
+  mod: transformersMod,
+  cdn: TRANSFORMERS_CDN,
+  ver: TRANSFORMERS_VER,
+} = await loadTransformers();
+
+const { pipeline, env, version } = transformersMod;
 
 const tabs = document.querySelectorAll('.tab');
 const panes = {
@@ -103,9 +107,9 @@ function logLine(...args) {
 
 const hasGPU = !!navigator.gpu;
 document.getElementById('gpu-badge').textContent = 'GPU: ' + (hasGPU ? 'WebGPU available' : 'No WebGPU');
-document.getElementById('version-badge').textContent =
-  'Transformers.js: ' + (__TRANSFORMERS_VER__ || version || 'unknown');
-document.getElementById('cdnInfo').textContent = 'CDN: ' + __TRANSFORMERS_CDN__;
+const resolvedVer = TRANSFORMERS_VER || version || 'unknown';
+document.getElementById('version-badge').textContent = 'Transformers.js: ' + resolvedVer;
+document.getElementById('cdnInfo').textContent = 'CDN: ' + TRANSFORMERS_CDN;
 document.getElementById('gpuInfo').textContent = 'GPU: ' + (hasGPU ? 'WebGPU available' : 'No WebGPU');
 
 try {
@@ -294,7 +298,7 @@ let generator = null;
 let DOC_EMB = null;
 
 async function loadPipelines() {
-  logLine('[pipelines] loading pipelines…', { EMBED_MODEL, GEN_MODEL, cdn: __TRANSFORMERS_CDN__ });
+  logLine('[pipelines] loading pipelines…', { EMBED_MODEL, GEN_MODEL, cdn: TRANSFORMERS_CDN });
   setOverlayMessage(ovRAG, 'Loading Transformers pipelines…');
   const t0 = performance.now();
   embedder = await pipeline('feature-extraction', EMBED_MODEL, { quantized: true });
@@ -304,7 +308,23 @@ async function loadPipelines() {
 }
 async function embedTextMeanNorm(text) {
   const out = await embedder(text, { pooling: 'mean', normalize: true });
-  return new Float32Array(out);
+  let data = null;
+  if (out == null) {
+    throw new Error('embedder returned null/undefined output');
+  }
+  if (out.data) {
+    data = out.data;
+  } else if (Array.isArray(out)) {
+    data = out;
+  } else if (ArrayBuffer.isView(out)) {
+    data = out;
+  } else if (typeof out.tolist === 'function') {
+    data = out.tolist();
+  }
+  if (!data) {
+    throw new Error('Unable to extract embedding data');
+  }
+  return ArrayBuffer.isView(data) ? new Float32Array(data) : Float32Array.from(data);
 }
 async function loadOrComputeDocEmbeddings() {
   setOverlayMessage(ovRAG, 'Preparing document embeddings…');
@@ -360,17 +380,27 @@ hide(ovRAG);
 logLine('[init] RAG stack ready.');
 
 function cosineSim(a, b) {
+  if (!a || !b || a.length !== b.length) {
+    return 0;
+  }
   let s = 0;
   let na = 0;
   let nb = 0;
   for (let i = 0; i < a.length; i++) {
     const x = a[i];
     const y = b[i];
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      continue;
+    }
     s += x * y;
     na += x * x;
     nb += y * y;
   }
-  return s / (Math.sqrt(na) * Math.sqrt(nb) + 1e-9);
+  const denom = Math.sqrt(na) * Math.sqrt(nb);
+  if (denom === 0) {
+    return 0;
+  }
+  return s / denom;
 }
 async function retrieve(query, kBM = 12, k = 4, bmTh = 0.1) {
   const t0 = performance.now();
@@ -454,7 +484,7 @@ q.addEventListener('keydown', (e) => {
 
 btnCheckImport.onclick = async () => {
   try {
-    const keys = Object.keys(await import(/* @vite-ignore */ __TRANSFORMERS_CDN__));
+    const keys = Object.keys(await import(/* @vite-ignore */ TRANSFORMERS_CDN));
     logLine('[diagnostics] import OK. exports keys:', keys);
     alert('Import OK. Check Logs tab.');
   } catch (e) {
