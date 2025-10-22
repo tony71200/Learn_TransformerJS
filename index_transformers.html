@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <title>RAG Chat — Transformers.js (Cache + Diagnostics + Fallback + Tabs)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- MiniSearch (BM25-ish) -->
+  <script src="https://cdn.jsdelivr.net/npm/minisearch@6.3.0/dist/umd/index.min.js"></script>
+  <!-- IndexedDB helper -->
+  <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
+  <style>
+    :root{ --accent:#ff7a00; --blue:#1f6feb; --bg:#ffffff; --bot:#fff; --bot-b:#e5e7eb; --user:#1f6feb; --user-t:#fff; }
+    body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial}
+    header{padding:14px 18px;border-bottom:1px solid #eee;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    h1{margin:0;color:#0f172a;font-size:18px}
+    .badge{background:#eef2ff;color:#3730a3;border:1px solid #e0e7ff;padding:2px 8px;border-radius:999px;font-size:12px}
+    .btn{border:1px solid #e5e7eb;background:#fff;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer}
+    .btn:hover{background:#fafafa}
+    .btn.danger{border-color:#fecaca;background:#fff0f0;color:#b91c1c}
+    .wrap{display:grid;grid-template-columns:1fr 420px;gap:16px;padding:14px 18px;height:calc(100vh - 60px);box-sizing:border-box}
+    .chat{border:1px solid #e5e7eb;border-radius:12px;background:#fff;display:flex;flex-direction:column;overflow:hidden}
+    .chatlog{padding:12px;height:calc(100% - 120px);overflow:auto}
+    .row{display:flex;margin:8px 0}
+    .row.user{justify-content:flex-end}.row.bot{justify-content:flex-start}
+    .bubble{max-width:78%;padding:10px 12px;border-radius:14px;white-space:pre-wrap;word-wrap:break-word;line-height:1.45}
+    .bot .bubble{background:var(--bot);border:1px solid var(--bot-b);border-top-left-radius:4px}
+    .user .bubble{background:var(--user);color:var(--user-t);border-top-right-radius:4px}
+    .bar{display:flex;gap:8px;border-top:1px solid #e5e7eb;padding:10px;background:#fafafa;align-items:center}
+    .bar input{flex:1;padding:10px 12px;border-radius:10px;border:1px solid #e5e7eb;font-size:14px}
+    .bar button{width:46px;border:none;border-radius:10px;background:var(--accent);color:#fff;font-weight:600}
+
+    /* Right panel with tabs */
+    .right{border:1px solid #e5e7eb;border-radius:12px;background:#fff;display:flex;flex-direction:column;overflow:hidden}
+    .tabs{display:flex;border-bottom:1px solid #e5e7eb;background:#fafafa}
+    .tab{flex:1;padding:10px 12px;text-align:center;cursor:pointer;font-weight:600;border-right:1px solid #e5e7eb}
+    .tab:last-child{border-right:none}
+    .tab.active{background:#fff;color:#0f172a}
+    .tabpanes{flex:1;position:relative}
+    .pane{position:absolute;inset:0;display:none}
+    .pane.active{display:block}
+    .pane-inner{padding:12px;height:100%;box-sizing:border-box;overflow:auto}
+    .pill{display:inline-block;background:#f1f5f9;color:#0f172a;border:1px solid #e2e8f0;border-radius:999px;padding:4px 8px;font-size:12px;margin:0 8px 8px 0}
+
+    /* Traces table */
+    table{border-collapse:collapse;width:100%;font-size:12px}
+    th,td{border-bottom:1px solid #eee;padding:6px;text-align:left}
+
+    /* Logs */
+    .logline{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;font-size:12px;white-space:pre-wrap;border-bottom:1px dashed #23324a33;padding:4px 0}
+    .logline .ts{color:#9ca3af;margin-right:6px}
+
+    /* Controls group */
+    .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .control{background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;padding:6px 8px;font-size:12px}
+    .control input{width:64px}
+    select{border:1px solid #e5e7eb;border-radius:8px;padding:6px 8px;background:#fff}
+
+    /* Overlays */
+    .overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);display:none;align-items:center;justify-content:center;z-index:9999}
+    .overlay .box{background:#0b1220;color:#e5e7eb;border:1px solid #1f2937;border-radius:12px;padding:16px 18px;min-width:300px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    .spin{width:18px;height:18px;border:3px solid #64748b;border-top-color:#fff;border-radius:50%;display:inline-block;animation:spin 1s linear infinite;margin-right:8px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>💬 RAG Chat — Transformers.js</h1>
+    <span class="badge" id="gpu-badge">GPU: …</span>
+    <span class="badge" id="backend-badge">Backend: …</span>
+    <span class="badge" id="version-badge">Transformers.js: …</span>
+    <button class="btn" id="btn-check-import">Check import</button>
+    <button class="btn" id="btn-self-test">Self-test</button>
+  </header>
+
+  <!-- Model bar -->
+  <div class="model-bar">
+    <div class="controls">
+      <label class="control">Generator
+        <select id="selGen">
+          <option value="Xenova/mt5-small" selected>mT5-small (đa ngôn ngữ)</option>
+          <option value="Xenova/mt5-base">mT5-base (đa ngôn ngữ, tốt hơn nhưng nặng)</option>
+          <option value="Xenova/flan-t5-small">Flan-T5-small (EN chủ đạo)</option>
+          <option value="Xenova/flan-t5-base">Flan-T5-base (EN, nặng hơn)</option>
+        </select>
+      </label>
+      <label class="control">Embedder
+        <select id="selEmb">
+          <option value="Xenova/paraphrase-multilingual-MiniLM-L12-v2" selected>MiniLM-L12-v2 (đa ngôn ngữ)</option>
+          <option value="Xenova/all-MiniLM-L6-v2">all-MiniLM-L6-v2 (tiếng Anh)</option>
+        </select>
+      </label>
+      <button class="btn" id="btn-apply">Apply Models</button>
+      <button class="btn danger" id="btn-clear-current">Clear cache (current)</button>
+      <button class="btn danger" id="btn-clear-all">Clear cache (all embeds*)</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <!-- Left: Chat -->
+    <section class="chat">
+      <div class="chatlog" id="chatlog"></div>
+      <div class="bar">
+        <div class="controls">
+          <label class="control">Top-BM25 <input id="inTopBM" type="number" min="4" max="64" step="1" value="12"></label>
+          <label class="control">Top-Final (k) <input id="inTopK" type="number" min="2" max="12" step="1" value="4"></label>
+          <label class="control">Ngưỡng BM25 <input id="inBMTh" type="number" min="0" max="1" step="0.01" value="0.10"></label>
+        </div>
+        <input id="q" placeholder="Hỏi bằng tiếng Việt hoặc tiếng Anh..." />
+        <button id="send" title="Gửi">➤</button>
+      </div>
+    </section>
+
+    <!-- Right: Tabs (Traces / Logs / Info) -->
+    <aside class="right">
+      <div class="tabs">
+        <div class="tab active" data-tab="logs">Logs</div>
+        <div class="tab" data-tab="traces">Traces</div>
+        <div class="tab" data-tab="info">Info</div>
+      </div>
+      <div class="tabpanes">
+        <div class="pane active" id="pane-traces"><div class="pane-inner">
+          <table id="traces"><thead><tr>
+            <th>#</th><th>Section</th><th>Source</th><th>Chunk</th><th>BM25</th><th>Cos</th>
+          </tr></thead><tbody></tbody></table>
+        </div></div>
+        <div class="pane" id="pane-logs"><div class="pane-inner" id="diag-log"></div></div>
+        <div class="pane" id="pane-info"><div class="pane-inner">
+        <div class="pill" id="pillGen">Generator: mT5-small</div>
+          <div class="pill" id="pillEmb">Embedder: MiniLM-L12-v2</div>
+          <div class="pill" id="gpuInfo">GPU: checking…</div>
+          <div class="pill" id="cdnInfo">CDN: …</div>
+          <p class="note">* Clear cache (all) sẽ xoá mọi embeddings đã lưu trong IndexedDB cho tất cả cấu hình.</p>
+        </div></div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Overlays -->
+  <div id="overlay-lib" class="overlay"><div class="box"><span class="spin"></span> Loading Transformers.js library…</div></div>
+  <div id="overlay-rag" class="overlay"><div class="box"><span class="spin"></span> Building RAG (load JSON, index, embeddings)…</div></div>
+
+<script type="module">
+/* ==================== OVERLAY helpers ==================== */
+const ovLib = document.getElementById('overlay-lib');
+const ovRAG = document.getElementById('overlay-rag');
+function show(el){ el.style.display='flex'; }
+function hide(el){ el.style.display='none'; }
+
+/* ==================== LOADER (multi-version + multi-CDN) ==================== */
+show(ovLib);
+
+async function loadTransformers() {
+  const versions = ['2.12.0']; // fallback list
+  const cdns = [
+    v => `https://cdn.jsdelivr.net/npm/@xenova/transformers@${v}/dist/transformers.min.js`,
+    // v => `https://unpkg.com/@xenova/transformers@${v}/dist/transformers.min.js`,
+    // v => `https://esm.run/@xenova/transformers@${v}`,
+  ];
+  let lastErr = null;
+  for (const v of versions){
+    for (const gen of cdns){
+      const url = gen(v);
+      try {
+        console.log('[loader] trying', url);
+        const mod = await import(url);
+        if (!mod.pipeline) throw new Error('pipeline missing');
+        console.log('[loader] success', url, 'exports=', Object.keys(mod));
+        mod.__TRANSFORMERS_CDN__ = url;
+        mod.__TRANSFORMERS_VER__ = v;
+        hide(ovLib);
+        return mod;
+      } catch (e) {
+        console.warn('[loader] failed', url, e);
+        lastErr = e;
+      }
+    }
+  }
+  hide(ovLib);
+  throw lastErr || new Error('Unable to load @xenova/transformers from all CDNs/versions');
+}
+const { pipeline, env, version, __TRANSFORMERS_CDN__, __TRANSFORMERS_VER__ } = await loadTransformers();
+
+/* ==================== TABS ==================== */
+const tabs = document.querySelectorAll('.tab');
+const panes = {
+  logs: document.getElementById('pane-logs'),
+  traces: document.getElementById('pane-traces'),
+  info: document.getElementById('pane-info'),
+};
+tabs.forEach(t => t.onclick = () => {
+  tabs.forEach(x => x.classList.remove('active'));
+  t.classList.add('active');
+  const name = t.dataset.tab;
+  Object.entries(panes).forEach(([k,el]) => el.classList.toggle('active', k===name));
+});
+
+/* ==================== DIAG UI helpers ==================== */
+const logWrap = document.getElementById('diag-log');
+function logLine(...args){
+  console.log(...args);
+  const div = document.createElement('div');
+  div.className = 'logline';
+  const ts = document.createElement('span');
+  ts.className = 'ts';
+  ts.textContent = new Date().toLocaleTimeString() + ' —';
+  div.appendChild(ts);
+  div.appendChild(document.createTextNode(args.map(a => {
+    try { return typeof a === 'object' ? JSON.stringify(a) : String(a); } catch { return String(a); }
+  }).join(' ')));
+  logWrap.appendChild(div);
+  logWrap.scrollTop = logWrap.scrollHeight;
+}
+
+/* ==================== Badges ==================== */
+const hasGPU = !!navigator.gpu;
+document.getElementById('gpu-badge').textContent = "GPU: " + (hasGPU ? "WebGPU available" : "No WebGPU");
+document.getElementById('version-badge').textContent = "Transformers.js: " + (__TRANSFORMERS_VER__ || version || "unknown");
+document.getElementById('cdnInfo').textContent = "CDN: " + __TRANSFORMERS_CDN__;
+document.getElementById('gpuInfo').textContent = "GPU: " + (hasGPU ? "WebGPU available" : "No WebGPU");
+
+/* ==================== CONFIG Transformers.js / ONNX ==================== */
+try {
+  env.allowLocalModels = false;
+  env.backends.onnx.preferWebGPU = hasGPU;   // WebGPU nếu có; else WASM
+  env.backends.onnx.wasm.proxy = true;       // chạy trong worker
+  env.backends.onnx.wasm.numThreads = 1;     // chỉnh theo CPU
+  logLine("[env] backends =", env.backends);
+  document.getElementById('backend-badge').textContent = "Backend: " + (hasGPU ? "WebGPU/ONNX" : "WASM/ONNX");
+} catch (e) {
+  logLine("[env] backend config error:", e);
+  document.getElementById('backend-badge').textContent = "Backend: config error";
+}
+
+/* ==================== UI Elements ==================== */
+const chatlog = document.getElementById('chatlog');
+const q = document.getElementById('q');
+const btn = document.getElementById('send');
+const tracesBody = document.querySelector('#traces tbody');
+const inTopBM = document.getElementById('inTopBM');
+const inTopK = document.getElementById('inTopK');
+const inBMTh = document.getElementById('inBMTh');
+const btnCheckImport = document.getElementById('btn-check-import');
+const btnSelfTest = document.getElementById('btn-self-test');
+const selGen = document.getElementById('selGen');
+const selEmb = document.getElementById('selEmb');
+const btnApply = document.getElementById('btn-apply');
+const btnClearCurrent = document.getElementById('btn-clear-current');
+const btnClearAll = document.getElementById('btn-clear-all');
+const pillGen = document.getElementById('pillGen');
+const pillEmb = document.getElementById('pillEmb');
+
+function addBubble(role, html){
+  const row = document.createElement('div');
+  row.className = `row ${role}`;
+  const b = document.createElement('div');
+  b.className = 'bubble';
+  b.innerHTML = html;
+  row.appendChild(b);
+  chatlog.appendChild(row);
+  chatlog.scrollTop = chatlog.scrollHeight;
+  return b;
+}
+
+/* ==================== DATA LOAD & CHUNK ==================== */
+const JSON_FILES = ['data.json','private_knowledge.json'];
+
+async function sha256OfText(text) {
+  const enc = new TextEncoder().encode(text);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+function norm(s){ return (s||'').replace(/\s+/g,' ').trim(); }
+function walkJSON(obj, path="", out=[]){
+  if (obj==null) return out;
+  if (typeof obj==='string'){ const t=norm(obj); if (t) out.push({section:path||'root', text:t}); return out; }
+  if (Array.isArray(obj)){ obj.forEach(v=>walkJSON(v,path,out)); return out; }
+  if (typeof obj==='object'){
+    for (const [k,v] of Object.entries(obj)){
+      const p = path?`${path}.${k}`:k;
+      if (typeof v==='string'){ const t=norm(v); if (t) out.push({section:p, text:t}); }
+      else walkJSON(v,p,out);
+    }
+  }
+  return out;
+}
+function chunkText(text, size=900, overlap=150){
+  if (text.length<=size) return [text];
+  let i=0, res=[];
+  while(i<text.length){
+    const end=Math.min(text.length,i+size);
+    res.push(text.slice(i,end));
+    if(end===text.length) break;
+    i=Math.max(0,end-overlap);
+  }
+  return res;
+}
+
+let CHUNKS = [];
+let mini = null;
+
+const t0Load = performance.now();
+async function buildIndex(){
+  logLine("[data] start loading JSON files:", JSON_FILES);
+  const contents = await Promise.all(JSON_FILES.map(async (src)=>{
+    const r = await fetch(src);
+    const t = await r.text();
+    logLine(`[data] ${src} bytes=`, t.length);
+    return { src, text: t, json: JSON.parse(t) };
+  }));
+
+  const sectionMap = new Map();
+  for (const {src, json} of contents){
+    const pairs = walkJSON(json);
+    for (const {section, text} of pairs){
+      const key = `${src}::${section||'root'}`;
+      if (!sectionMap.has(key)) sectionMap.set(key, {src, section, items: []});
+      sectionMap.get(key).items.push(text);
+    }
+  }
+
+  CHUNKS = [];
+  let id=0;
+  for (const {src, section, items} of sectionMap.values()){
+    const joined = norm(items.join(' '));
+    const parts = chunkText(joined);
+    parts.forEach((ch, i)=>{
+      if (ch.length >= 20) {
+        CHUNKS.push({ id:(id++).toString(), text:ch, section, source:src, chunkId:`${section}#${i}` });
+      }
+    });
+  }
+  logLine("[data] total sections:", sectionMap.size, "chunks:", CHUNKS.length);
+
+  mini = new MiniSearch({
+    fields:['text'], storeFields:['text','section','source','chunkId'],
+    searchOptions:{ boost:{text:1} }
+  });
+  mini.addAll(CHUNKS);
+  const t1 = performance.now();
+  logLine(`[data] index built in ${(t1 - t0Load).toFixed(1)} ms`);
+}
+
+/* ==================== CONFIG / STATE ==================== */
+const LS = {
+  gen: 'rag.gen.model',
+  emb: 'rag.emb.model',
+  topBM: 'rag.topBM',
+  topK: 'rag.topK',
+  bmTh: 'rag.bmTh',
+};
+function loadLS(){
+  if (localStorage.getItem(LS.gen)) selGen.value = localStorage.getItem(LS.gen);
+  if (localStorage.getItem(LS.emb)) selEmb.value = localStorage.getItem(LS.emb);
+  if (localStorage.getItem(LS.topBM)) inTopBM.value = localStorage.getItem(LS.topBM);
+  if (localStorage.getItem(LS.topK)) inTopK.value = localStorage.getItem(LS.topK);
+  if (localStorage.getItem(LS.bmTh)) inBMTh.value = localStorage.getItem(LS.bmTh);
+}
+function saveLS(){
+  localStorage.setItem(LS.gen, selGen.value);
+  localStorage.setItem(LS.emb, selEmb.value);
+  localStorage.setItem(LS.topBM, inTopBM.value);
+  localStorage.setItem(LS.topK, inTopK.value);
+  localStorage.setItem(LS.bmTh, inBMTh.value);
+}
+loadLS();
+pillGen.textContent = "Generator: " + selGen.value.split('/').pop();
+pillEmb.textContent = "Embedder: " + selEmb.value.split('/').pop();
+
+/* ==================== SIGNATURE ==================== */
+let EMBED_MODEL = selEmb.value;
+let GEN_MODEL = selGen.value;
+
+async function computeSignature(){
+  const settings = `${EMBED_MODEL}|${GEN_MODEL}|size=900|overlap=150`;
+  const fileHashes = await Promise.all(JSON_FILES.map(async (src)=>{
+    const r = await fetch(src); const t = await r.text();
+    return `${src}:${await sha256OfText(t)}`;
+  }));
+  const sig = await sha256OfText(settings + "|" + fileHashes.join("|"));
+  logLine("[cache] signature:", sig, "settings:", settings);
+  return sig;
+}
+
+/* ==================== PIPELINES & CACHED EMBEDS ==================== */
+let embedder = null;
+let generator = null;
+let DOC_EMB = null; // Array<Float32Array>
+
+async function loadPipelines(){
+  logLine("[pipelines] loading pipelines…", { EMBED_MODEL, GEN_MODEL, cdn: __TRANSFORMERS_CDN__ });
+  const t0 = performance.now();
+  embedder = await pipeline("feature-extraction", EMBED_MODEL, { quantized: true });
+  generator = await pipeline("text2text-generation", GEN_MODEL, { quantized: true });
+  const t1 = performance.now();
+  logLine(`[pipelines] loaded in ${(t1 - t0).toFixed(1)} ms`);
+}
+async function embedTextMeanNorm(text){
+  const out = await embedder(text, { pooling: "mean", normalize: true });
+  return new Float32Array(out);
+}
+async function loadOrComputeDocEmbeddings(){
+  const sig = await computeSignature();
+  const cacheKey = `embeds::${sig}`;
+  logLine("[cache] try load:", cacheKey);
+
+  try {
+    const cached = await idbKeyval.get(cacheKey);
+    if (cached && Array.isArray(cached) && cached.length === CHUNKS.length){
+      DOC_EMB = cached.map(arr => new Float32Array(arr));
+      logLine("[cache] HIT — loaded embeddings from IndexedDB:", DOC_EMB.length);
+      return { cacheKey, hit:true };
+    } else {
+      logLine("[cache] MISS — no cache or size mismatch.");
+    }
+  } catch (e) {
+    logLine("[cache] load error:", e);
+  }
+
+  // Compute fresh
+  logLine("[embed] computing doc embeddings… count:", CHUNKS.length);
+  const t0 = performance.now();
+  DOC_EMB = new Array(CHUNKS.length);
+  for (let i=0; i<CHUNKS.length; i++){
+    const e0 = performance.now();
+    DOC_EMB[i] = await embedTextMeanNorm(CHUNKS[i].text);
+    const e1 = performance.now();
+    if (i % 20 === 0) logLine(`[embed] progress: ${i+1}/${CHUNKS.length}  (+${(e1-e0).toFixed(1)} ms)`);
+  }
+  const t1 = performance.now();
+  logLine(`[embed] done in ${(t1 - t0).toFixed(1)} ms`);
+
+  // Save to IndexedDB
+  const dump = DOC_EMB.map(v => Array.from(v));
+  try {
+    await idbKeyval.set(cacheKey, dump);
+    logLine("[cache] saved embeddings to IndexedDB:", cacheKey);
+  } catch (e) {
+    logLine("[cache] save error (quota or structured clone):", e);
+  }
+  return { cacheKey, hit:false };
+}
+
+/* ==================== BUILD RAG (with overlay) ==================== */
+show(ovRAG);
+await buildIndex();
+await loadPipelines();
+await loadOrComputeDocEmbeddings();
+hide(ovRAG);
+
+/* ==================== RETRIEVAL ==================== */
+function cosineSim(a, b){
+  let s=0, na=0, nb=0;
+  for (let i=0;i<a.length;i++){ const x=a[i], y=b[i]; s+=x*y; na+=x*x; nb+=y*y; }
+  return s / (Math.sqrt(na)*Math.sqrt(nb)+1e-9);
+}
+async function retrieve(query, kBM=12, k=4, bmTh=0.10){
+  const t0 = performance.now();
+  const bm = mini.search(query, { fuzzy: 0.1, prefix: true });
+  const bmBest = bm[0]?.score || 0;
+  const useGlobal = bmBest < bmTh;
+
+  const qv = await embedTextMeanNorm(query);
+  let top = [];
+  if (useGlobal){
+    logLine(`[retrieval] BM25 weak (best=${bmBest.toFixed(4)} < th=${bmTh}) → global cosine`);
+    const scored = CHUNKS.map((d, i)=>({ i, cos: cosineSim(qv, DOC_EMB[i]) }));
+    scored.sort((a,b)=>b.cos - a.cos);
+    top = scored.slice(0,k).map(s=>({ ...CHUNKS[s.i], bm25: 0, cos: s.cos }));
+  } else {
+    logLine(`[retrieval] BM25 ok (best=${bmBest.toFixed(4)} ≥ th=${bmTh}) → rerank ${Math.min(kBM,bm.length)} cands by cosine`);
+    const cand = bm.slice(0,kBM).map(r=>({ i: parseInt(r.id), bm: r.score }));
+    const rescored = cand.map(c=>({ ...c, cos: cosineSim(qv, DOC_EMB[c.i]) }));
+    rescored.sort((a,b)=>b.cos - a.cos);
+    top = rescored.slice(0,k).map(s=>({ ...CHUNKS[s.i], bm25: s.bm, cos: s.cos }));
+  }
+  const t1 = performance.now();
+  logLine(`[retrieval] found=${top.length} in ${(t1 - t0).toFixed(1)} ms`);
+  return top;
+}
+function renderTraces(items){
+  tracesBody.innerHTML = '';
+  items.forEach((it, idx)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${idx+1}</td><td>${it.section}</td><td>${it.source.replace('./','')}</td><td>${it.chunkId}</td><td>${(it.bm25??0).toFixed(4)}</td><td>${(it.cos??0).toFixed(4)}</td>`;
+    tracesBody.appendChild(tr);
+  });
+}
+
+/* ==================== GENERATION ==================== */
+async function generateVi(query, contexts){
+  const ctx = contexts.map((c,i)=>`[${i+1}] ${c.text}`).join(" ");
+  const prompt = `Hãy trả lời ngắn gọn, rõ ràng và tự nhiên bằng tiếng Việt dựa trên NGỮ CẢNH sau: ${ctx}\n\nCÂU HỎI: ${query}\n\nTrả lời bằng tiếng Việt, có thể tham chiếu [1], [2]... nếu cần.`;
+  logLine("[gen] prompt.len=", prompt.length);
+
+  const t0 = performance.now();
+  const out = await generator(prompt, { max_new_tokens: 200 });
+  const t1 = performance.now();
+  const text = out?.[0]?.generated_text || "(không có kết quả)";
+  logLine(`[gen] generated in ${(t1 - t0).toFixed(1)} ms`, { preview: text.slice(0,120) + '…' });
+
+  // stream giả theo cụm từ
+  const bot = addBubble('bot', "");
+  const parts = text.split(/(\s+)/);
+  for (const p of parts){
+    bot.textContent += p;
+    chatlog.scrollTop = chatlog.scrollHeight;
+    await new Promise(r=>setTimeout(r, 8));
+  }
+  return text;
+}
+
+/* ==================== EVENTS ==================== */
+function parseNum(el, def){ const v = parseFloat(el.value); return Number.isFinite(v) ? v : def; }
+async function onAsk(){
+  const query = q.value.trim();
+  const topBM = parseNum(inTopBM, 12);
+  const topK = parseNum(inTopK, 4);
+  const bmTh = parseNum(inBMTh, 0.10);
+  if (!query) return;
+
+  addBubble('user', query);
+  q.value = "";
+
+  saveLS();
+  logLine("[ask] query:", query, { topBM, topK, bmTh, GEN_MODEL, EMBED_MODEL });
+
+  const top = await retrieve(query, topBM, topK, bmTh);
+  renderTraces(top);
+  await generateVi(query, top);
+}
+btn.onclick = onAsk;
+q.addEventListener('keydown', (e)=>{ if (e.key==='Enter' && !e.shiftKey) onAsk(); });
+
+/* ==================== DIAGNOSTICS ==================== */
+document.getElementById('btn-check-import').onclick = async () => {
+  try {
+    const keys = Object.keys(await import(__TRANSFORMERS_CDN__));
+    logLine("[diagnostics] import OK. exports keys:", keys);
+    alert("Import OK. Check Logs tab.");
+  } catch (e) {
+    logLine("[diagnostics] import FAIL:", e);
+    alert("Import FAIL. Xem Logs tab.");
+  }
+};
+document.getElementById('btn-self-test').onclick = async () => {
+  try {
+    logLine("[self-test] starting text-classification (sentiment)...");
+    const sst = await pipeline("text-classification", "Xenova/distilbert-base-uncased-finetuned-sst-2-english", { quantized: true });
+    const out = await sst("Transformers.js is working!");
+    logLine("[self-test] output:", out);
+    alert("Self-test OK. Xem Logs tab.");
+  } catch (e) {
+    logLine("[self-test] FAIL:", e);
+    alert("Self-test FAIL. Xem Logs tab.");
+  }
+};
+
+/* ==================== CACHE ACTIONS & MODEL SWITCH ==================== */
+btnApply.onclick = async () => {
+  // đổi model → load pipelines mới, tính lại signature & embeddings
+  EMBED_MODEL = selEmb.value;
+  GEN_MODEL = selGen.value;
+  pillGen.textContent = "Generator: " + GEN_MODEL.split('/').pop();
+  pillEmb.textContent = "Embedder: " + EMBED_MODEL.split('/').pop();
+  saveLS();
+
+  show(ovRAG);
+  logLine("[models] applying…", { EMBED_MODEL, GEN_MODEL });
+  await loadPipelines();
+  await loadOrComputeDocEmbeddings();
+  hide(ovRAG);
+  alert("Models applied. Embeddings loaded (cache or recomputed).");
+};
+
+btnClearCurrent.onclick = async () => {
+  const sig = await computeSignature();
+  const cacheKey = `embeds::${sig}`;
+  try {
+    await idbKeyval.del(cacheKey);
+    logLine("[cache] cleared current:", cacheKey);
+    alert("Cleared current cache.");
+  } catch (e) {
+    logLine("[cache] clear current error:", e);
+    alert("Error clearing current cache (xem Logs).");
+  }
+};
+
+btnClearAll.onclick = async () => {
+  try {
+    const keys = await idbKeyval.keys();
+    let count = 0;
+    for (const k of keys){
+      if (typeof k === 'string' && k.startsWith('embeds::')){
+        await idbKeyval.del(k);
+        count++;
+      }
+    }
+    logLine(`[cache] cleared ALL embeds::* (${count} keys).`);
+    alert(`Cleared ALL embeds::* (${count}).`);
+  } catch (e) {
+    logLine("[cache] clear all error:", e);
+    alert("Error clearing all cache (xem Logs).");
+  }
+};
+</script>
+</body>
+</html>
