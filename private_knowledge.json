@@ -1,0 +1,16 @@
+{
+  "entries": [
+    {
+      "question": "Bạn có nhận dự án tư vấn triển khai AI không?",
+      "answer": "Có. Long nhận tư vấn và triển khai các giải pháp AI/ML đầu-cuối, đặc biệt là các bài toán thị giác máy tính, tối ưu hóa pipeline inference và tích hợp LLM cho doanh nghiệp nhỏ." 
+    },
+    {
+      "question": "Long đang sống ở đâu và có thể làm việc từ xa không?",
+      "answer": "Long đang sinh sống tại Thành phố Đài Nam, Đài Loan. Hoàn toàn có thể cộng tác từ xa với các nhóm ở Việt Nam, Đài Loan hoặc quốc tế." 
+    },
+    {
+      "question": "Long mong muốn kiểu cơ hội nào trong thời gian tới?",
+      "answer": "Long tìm kiếm các cơ hội tập trung vào tối ưu mô hình, hệ thống AI chạy trên thiết bị biên, và các dự án kết hợp giữa LLM với automation để tạo tác động thực tế." 
+    }
+  ]
+}

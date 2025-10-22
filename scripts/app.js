@@ -437,7 +437,7 @@ function renderTraces(items) {
 
 async function generateVi(query, contexts) {
   const ctx = contexts.map((c, i) => `[${i + 1}] ${c.text}`).join(' ');
-  const prompt = `Hãy trả lời ngắn gọn, rõ ràng và tự nhiên bằng tiếng Việt dựa trên NGỮ CẢNH sau: ${ctx}\n\nCÂU HỎI: ${query}\n\nTrả lời bằng tiếng Việt, có thể tham chiếu [1], [2]... nếu cần.`;
+  const prompt = `Please answer briefly, clearly and naturally based on the following CONTEXT.: ${ctx}\n\nQUESTION: ${query}\n\nAnswer:`;
   logLine('[gen] prompt.len=', prompt.length);
 
   const t0 = performance.now();
