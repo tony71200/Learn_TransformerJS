@@ -1,3 +1,5 @@
+import { VectorIndex } from './vector_index.js';
+
 const ovLib = document.getElementById('overlay-lib');
 const ovRAG = document.getElementById('overlay-rag');
 const MiniSearchLib = window.MiniSearch;
@@ -204,6 +206,9 @@ function chunkText(text, size = 900, overlap = 150) {
 
 let CHUNKS = [];
 let mini = null;
+let vecIndex = null;
+let CURRENT_SIG = null;
+let CURRENT_USEARCH_KEY = null;
 
 const t0Load = performance.now();
 async function buildIndex() {
@@ -297,6 +302,77 @@ let embedder = null;
 let generator = null;
 let DOC_EMB = null;
 
+async function ensureVectorIndex(signature) {
+  if (!DOC_EMB || !DOC_EMB.length) {
+    logLine('[vector] skip — no document embeddings yet');
+    return;
+  }
+
+  const sigToUse = signature || CURRENT_SIG;
+  if (!sigToUse) {
+    logLine('[vector] skip — missing signature');
+    return;
+  }
+
+  const dim = DOC_EMB[0]?.length || 0;
+  if (!dim) {
+    logLine('[vector] skip — unknown embedding dimension');
+    return;
+  }
+
+  if (!vecIndex || vecIndex.dim !== dim) {
+    vecIndex = new VectorIndex(dim, 'cos');
+    await vecIndex.init();
+    logLine('[vector] initialized backend:', vecIndex.backend);
+  }
+
+  const pairs = CHUNKS.map((chunk, i) => ({ id: chunk.id, vec: DOC_EMB[i] }));
+  vecIndex.setFallbackPairs(pairs);
+
+  let loadedFromCache = false;
+  if (vecIndex.backend === 'usearch') {
+    const usearchKey = `usearch::${sigToUse}`;
+    CURRENT_USEARCH_KEY = usearchKey;
+    try {
+      const cachedIdx = await idbKeyvalLib.get(usearchKey);
+      if (cachedIdx) {
+        const ok = await vecIndex.load(cachedIdx);
+        if (ok) {
+          loadedFromCache = true;
+          logLine('[usearch] loaded index from cache:', usearchKey);
+          setOverlayMessage(ovRAG, 'Loaded vector index from cache.');
+        }
+      }
+    } catch (e) {
+      logLine('[usearch] load error:', e);
+    }
+  } else {
+    CURRENT_USEARCH_KEY = null;
+  }
+
+  if (!loadedFromCache) {
+    setOverlayMessage(ovRAG, 'Building vector index…');
+    const t0 = performance.now();
+    await vecIndex.rebuild(pairs);
+    const t1 = performance.now();
+    logLine('[vector] rebuilt index:', { backend: vecIndex.backend, size: vecIndex.size, ms: (t1 - t0).toFixed(1) });
+
+    if (vecIndex.backend === 'usearch') {
+      const usearchKey = `usearch::${sigToUse}`;
+      CURRENT_USEARCH_KEY = usearchKey;
+      try {
+        const buf = await vecIndex.save();
+        if (buf) {
+          await idbKeyvalLib.set(usearchKey, buf);
+          logLine('[usearch] saved index to IndexedDB:', usearchKey);
+        }
+      } catch (e) {
+        logLine('[usearch] save error:', e);
+      }
+    }
+  }
+}
+
 async function loadPipelines() {
   logLine('[pipelines] loading pipelines…', { EMBED_MODEL, GEN_MODEL, cdn: TRANSFORMERS_CDN });
   setOverlayMessage(ovRAG, 'Loading Transformers pipelines…');
@@ -338,7 +414,8 @@ async function loadOrComputeDocEmbeddings() {
       setOverlayMessage(ovRAG, 'Loaded cached embeddings from IndexedDB.');
       DOC_EMB = cached.map((arr) => new Float32Array(arr));
       logLine('[cache] HIT — loaded embeddings from IndexedDB:', DOC_EMB.length);
-      return { cacheKey, hit: true };
+      CURRENT_SIG = sig;
+      return { cacheKey, hit: true, signature: sig };
     }
     logLine('[cache] MISS — no cache or size mismatch.');
   } catch (e) {
@@ -369,13 +446,15 @@ async function loadOrComputeDocEmbeddings() {
     logLine('[cache] save error (quota or structured clone):', e);
   }
   setOverlayMessage(ovRAG, 'Embeddings ready.');
-  return { cacheKey, hit: false };
+  CURRENT_SIG = sig;
+  return { cacheKey, hit: false, signature: sig };
 }
 
 show(ovRAG);
 await buildIndex();
 await loadPipelines();
-await loadOrComputeDocEmbeddings();
+const { signature: initSig } = await loadOrComputeDocEmbeddings();
+await ensureVectorIndex(initSig || CURRENT_SIG);
 hide(ovRAG);
 logLine('[init] RAG stack ready.');
 
@@ -411,10 +490,22 @@ async function retrieve(query, kBM = 12, k = 4, bmTh = 0.1) {
   const qv = await embedTextMeanNorm(query);
   let top = [];
   if (useGlobal) {
-    logLine(`[retrieval] BM25 weak (best=${bmBest.toFixed(4)} < th=${bmTh}) → global cosine`);
-    const scored = CHUNKS.map((d, i) => ({ i, cos: cosineSim(qv, DOC_EMB[i]) }));
-    scored.sort((a, b) => b.cos - a.cos);
-    top = scored.slice(0, k).map((s) => ({ ...CHUNKS[s.i], bm25: 0, cos: s.cos }));
+    logLine(
+      `[retrieval] BM25 weak (best=${bmBest.toFixed(4)} < th=${bmTh}) → ANN global (backend=${vecIndex?.backend || 'flat'})`,
+    );
+    if (vecIndex && vecIndex.ready) {
+      const ann = await vecIndex.search(qv, Math.max(k, kBM));
+      const annTop = ann.slice(0, k);
+      top = annTop.map((item) => {
+        const idx = Number.parseInt(item.id, 10);
+        const cosScore = Number.isFinite(item.score) ? item.score : cosineSim(qv, DOC_EMB[idx]);
+        return { ...CHUNKS[idx], bm25: 0, cos: cosScore };
+      });
+    } else {
+      const scored = CHUNKS.map((d, i) => ({ i, cos: cosineSim(qv, DOC_EMB[i]) }));
+      scored.sort((a, b) => b.cos - a.cos);
+      top = scored.slice(0, k).map((s) => ({ ...CHUNKS[s.i], bm25: 0, cos: s.cos }));
+    }
   } else {
     logLine(`[retrieval] BM25 ok (best=${bmBest.toFixed(4)} ≥ th=${bmTh}) → rerank ${Math.min(kBM, bm.length)} cands by cosine`);
     const cand = bm.slice(0, kBM).map((r) => ({ i: parseInt(r.id, 10), bm: r.score }));
@@ -516,7 +607,8 @@ btnApply.onclick = async () => {
   setOverlayMessage(ovRAG, 'Applying selected models…');
   logLine('[models] applying…', { EMBED_MODEL, GEN_MODEL });
   await loadPipelines();
-  await loadOrComputeDocEmbeddings();
+  const { signature } = await loadOrComputeDocEmbeddings();
+  await ensureVectorIndex(signature || CURRENT_SIG);
   hide(ovRAG);
   alert('Models applied. Embeddings loaded (cache or recomputed).');
 };
@@ -524,9 +616,12 @@ btnApply.onclick = async () => {
 btnClearCurrent.onclick = async () => {
   const sig = await computeSignature();
   const cacheKey = `embeds::${sig}`;
+  const idxKey = `usearch::${sig}`;
   try {
     await idbKeyvalLib.del(cacheKey);
+    await idbKeyvalLib.del(idxKey);
     logLine('[cache] cleared current:', cacheKey);
+    logLine('[cache] cleared current vector index:', idxKey);
     alert('Cleared current cache.');
   } catch (e) {
     logLine('[cache] clear current error:', e);
@@ -538,14 +633,20 @@ btnClearAll.onclick = async () => {
   try {
     const keys = await idbKeyvalLib.keys();
     let count = 0;
+    let idxCount = 0;
     for (const k of keys) {
       if (typeof k === 'string' && k.startsWith('embeds::')) {
         await idbKeyvalLib.del(k);
         count++;
       }
+      if (typeof k === 'string' && k.startsWith('usearch::')) {
+        await idbKeyvalLib.del(k);
+        idxCount++;
+      }
     }
     logLine(`[cache] cleared ALL embeds::* (${count} keys).`);
-    alert(`Cleared ALL embeds::* (${count}).`);
+    logLine(`[cache] cleared ALL usearch::* (${idxCount} keys).`);
+    alert(`Cleared ALL embeds::* (${count}) và usearch::* (${idxCount}).`);
   } catch (e) {
     logLine('[cache] clear all error:', e);
     alert('Error clearing all cache (xem Logs).');
