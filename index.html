@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <title>RAG Chat — Transformers.js (Cache + Diagnostics + Fallback + Tabs)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles/main.css" />
+  <!-- MiniSearch (BM25-ish) -->
+  <script src="https://cdn.jsdelivr.net/npm/minisearch@6.3.0/dist/umd/index.min.js"></script>
+  <!-- IndexedDB helper -->
+  <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
+</head>
+<body>
+  <header>
+    <h1>💬 RAG Chat — Transformers.js</h1>
+    <span class="badge" id="gpu-badge">GPU: …</span>
+    <span class="badge" id="backend-badge">Backend: …</span>
+    <span class="badge" id="version-badge">Transformers.js: …</span>
+    <button class="btn" id="btn-check-import">Check import</button>
+    <button class="btn" id="btn-self-test">Self-test</button>
+  </header>
+
+  <!-- Model bar -->
+  <div class="model-bar">
+    <div class="controls">
+      <label class="control">Generator
+        <select id="selGen">
+          <option value="Xenova/mt5-small" selected>mT5-small (đa ngôn ngữ)</option>
+          <option value="Xenova/mt5-base">mT5-base (đa ngôn ngữ, tốt hơn nhưng nặng)</option>
+          <option value="Xenova/flan-t5-small">Flan-T5-small (EN chủ đạo)</option>
+          <option value="Xenova/flan-t5-base">Flan-T5-base (EN, nặng hơn)</option>
+        </select>
+      </label>
+      <label class="control">Embedder
+        <select id="selEmb">
+          <option value="Xenova/paraphrase-multilingual-MiniLM-L12-v2" selected>MiniLM-L12-v2 (đa ngôn ngữ)</option>
+          <option value="Xenova/all-MiniLM-L6-v2">all-MiniLM-L6-v2 (tiếng Anh)</option>
+        </select>
+      </label>
+      <button class="btn" id="btn-apply">Apply Models</button>
+      <button class="btn danger" id="btn-clear-current">Clear cache (current)</button>
+      <button class="btn danger" id="btn-clear-all">Clear cache (all embeds*)</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <!-- Left: Chat -->
+    <section class="chat">
+      <div class="chatlog" id="chatlog"></div>
+      <div class="bar">
+        <div class="controls">
+          <label class="control">Top-BM25 <input id="inTopBM" type="number" min="4" max="64" step="1" value="12"></label>
+          <label class="control">Top-Final (k) <input id="inTopK" type="number" min="2" max="12" step="1" value="4"></label>
+          <label class="control">Ngưỡng BM25 <input id="inBMTh" type="number" min="0" max="1" step="0.01" value="0.10"></label>
+        </div>
+        <input id="q" placeholder="Hỏi bằng tiếng Việt hoặc tiếng Anh..." />
+        <button id="send" title="Gửi">➤</button>
+      </div>
+    </section>
+
+    <!-- Right: Tabs (Traces / Logs / Info) -->
+    <aside class="right">
+      <div class="tabs">
+        <div class="tab active" data-tab="logs">Logs</div>
+        <div class="tab" data-tab="traces">Traces</div>
+        <div class="tab" data-tab="info">Info</div>
+      </div>
+      <div class="tabpanes">
+        <div class="pane active" id="pane-traces"><div class="pane-inner">
+          <table id="traces"><thead><tr>
+            <th>#</th><th>Section</th><th>Source</th><th>Chunk</th><th>BM25</th><th>Cos</th>
+          </tr></thead><tbody></tbody></table>
+        </div></div>
+        <div class="pane" id="pane-logs"><div class="pane-inner" id="diag-log"></div></div>
+        <div class="pane" id="pane-info"><div class="pane-inner">
+        <div class="pill" id="pillGen">Generator: mT5-small</div>
+          <div class="pill" id="pillEmb">Embedder: MiniLM-L12-v2</div>
+          <div class="pill" id="gpuInfo">GPU: checking…</div>
+          <div class="pill" id="cdnInfo">CDN: …</div>
+          <p class="note">* Clear cache (all) sẽ xoá mọi embeddings đã lưu trong IndexedDB cho tất cả cấu hình.</p>
+        </div></div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Overlays -->
+  <div id="overlay-lib" class="overlay"><div class="box"><span class="spin"></span> <span class="message">Loading Transformers.js library…</span></div></div>
+  <div id="overlay-rag" class="overlay"><div class="box"><span class="spin"></span> <span class="message">Building RAG (load JSON, index, embeddings)…</span></div></div>
+
+  <script type="module" src="scripts/app.js"></script>
+</body>
+</html>
