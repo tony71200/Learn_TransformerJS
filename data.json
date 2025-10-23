@@ -1,0 +1,368 @@
+{
+  "meta": {
+    "title": "Nguyen Thanh Long - Portfolio"
+  },
+  "profile": {
+    "avatar": {
+      "src": "assets/images/LongNguyen_ava_680.png",
+      "alt": "Nguyen Long"
+    },
+    "name": "Nguyen Thanh Long",
+    "titles": [
+      "M.S. in Computer Science",
+      "Machine Learning Engineer"
+    ],
+    "contacts": {
+      "email": {
+        "label": "Email",
+        "href": "mailto:tlong9648@gmail.com",
+        "display": "tlong9648@gmail.com"
+      },
+      "phone-tw": {
+        "label": "Phone (Taiwan)",
+        "href": "tel:+886971844606",
+        "display": "(+886) 971-844-606"
+      },
+      "phone-vn": {
+        "label": "Phone (Vietnam)",
+        "href": "tel:+84357148712",
+        "display": "(+84) 357-148-712"
+      },
+      "birthday": {
+        "label": "Birthday",
+        "datetime": "1996-08-04",
+        "display": "August 4, 1996"
+      },
+      "location": {
+        "label": "Location",
+        "display": "Tainan City, Taiwan"
+      }
+    },
+    "socials": {
+      "github": "https://github.com/tony71200",
+      "linkedin": "https://www.linkedin.com/in/long-nguyen-thanh-52bb88242/",
+      "scholar": "https://scholar.google.com/citations?user=r3tfrQcAAAAJ&hl",
+      "instagram": "https://www.instagram.com/longtony96/"
+    }
+  },
+  "about": {
+    "paragraphs": [
+      {
+        "index": 1,
+        "html": "I’m an AI Engineer who loves turning research into things people actually use. With a Master’s in Computer Science from <a href='https://www.ncku.edu.tw/' style='display: inline; color: var(--orange-yellow-crayola);'>National Cheng Kung University (NCKU)</a>, Taiwan. I specialize in <strong>Artificial Intelligence</strong>, <strong>Machine Learning</strong>, <strong>Deep Learning</strong>, <strong>computer vision</strong> and <strong>industrial automation</strong>."
+      },
+      {
+        "index": 2,
+        "html": "I focus on optimizing <strong>Large Language Models (LLMs)</strong> and <strong>computer vision</strong> systems for edge devices and industrial platforms—aiming for the sweet spot of accuracy, scalability, and computational efficiency."
+      },
+      {
+        "index": 3,
+        "html": "I’m originally from Danang city and earned my Bachelor’s degree at <a href='https://dut.udn.vn/' style='display: inline; color: var(--orange-yellow-crayola);'>Danang University of Science and Technology</a>. During my master’s, I worked as a graduate researcher at the <a href='http://robotics.csie.ncku.edu.tw/' target='_blank' rel='noopener' style='display: inline; color: var(--orange-yellow-crayola);'>Robotics Lab, NCKU</a>, contributing to medical imaging projects such as lung CT dataset curation, tumor detection models, and 3D reconstruction for analysis."
+      },
+      {
+        "index": 4,
+        "html": "Beyond engineering, I see AI as both tool and craft—something that can connect with design, creativity, and everyday life. That mindset keeps me building, experimenting, and sharing. I’m always open to collaborations, research ideas, and meaningful products. Feel free to reach out, explore my <a href='https://github.com/tony71200' style='display: inline; color: var(--orange-yellow-crayola);'>GitHub</a>, or download <a href='assets/resume/Long_Resume.pdf' target='_blank' style='display: inline; color: var(--orange-yellow-crayola); text-decoration: underline;'>my Resume</a>."
+      }
+    ],
+    "services": [
+      {
+        "index": 1,
+        "icon": {
+          "src": "https://cdnjs.cloudflare.com/ajax/libs/simple-icons/9.7.0/tensorflow.svg",
+          "alt": "AI"
+        },
+        "title": "AI & Machine Learning",
+        "descriptionHtml": "I design end-to-end ML and Computer Vision systems—from clean data pipelines and model training to evaluation and deployment on edge and servers. Recent work expands into LLMs/NLP (retrieval, lightweight fine-tuning, agent workflows) to connect vision and language. The goal: efficient, reliable solutions that ship to production with clear metrics."
+      },
+      {
+        "index": 2,
+        "icon": {
+          "src": "https://cdnjs.cloudflare.com/ajax/libs/simple-icons/9.7.0/linux.svg",
+          "alt": "Embedded Systems"
+        },
+        "title": "Embedded Systems",
+        "descriptionHtml": "I build real-time, AI-enabled embedded software that integrates cameras, sensors, and hardware for robotics and IoT. I care about low latency, robust I/O, and maintainable code that runs well on constrained devices."
+      },
+      {
+        "index": 3,
+        "icon": {
+          "src": "https://cdnjs.cloudflare.com/ajax/libs/simple-icons/9.7.0/microsoftacademic.svg",
+          "alt": "Research"
+        },
+        "title": "Research & Development",
+        "descriptionHtml": "I turn ideas into working prototypes fast—experiment, measure, iterate. Interests include intelligent systems, robotics, and deep learning, with a focus on methods that transfer to production and are backed by clear ablations."
+      }
+    ],
+    "testimonials": [
+      {
+        "index": 1,
+        "name": "Prof. James Jenn-Jier Lien",
+        "avatar": {
+          "src": "./assets/images/jjlien.png",
+          "alt": "Prof. James Jenn-Jier Lien"
+        },
+        "quoteHtml": "<p>Robotics Lab, Dept.of CSIE, NCKU.</p>\n<p><a href='mailto:jjien@csie.ncku.edu.tw' target='_blank' rel='noopener' style='display: inline; color: var(--orange-yellow-crayola);'>jjien@csie.ncku.edu.tw</a></p>\n<p>\"I had the pleasure of supervising Tony during his Master's at NCKU. He consistently demonstrated strong technical skills, a solid work ethic, and a collaborative spirit. His contributions to our research projects were valuable and impactful. I highly recommend Long for any role in AI or software development.\"</p>"
+      },
+      {
+        "index": 2,
+        "name": "Ph.D Le Phong Phu",
+        "avatar": {
+          "src": "./assets/images/lpphu.jpeg",
+          "alt": "Le Phong Phu"
+        },
+        "quoteHtml": "<p>Robotics Lab, Dept.of CSIE, NCKU.</p>\n<p><a href='mailto:Phu210.vn@gmail.com' target='_blank' rel='noopener' style='display: inline; color: var(--orange-yellow-crayola);'>Mr Phu</a></p>"
+      }
+    ]
+  },
+  "resume": {
+    "experiences": [
+      {
+        "index": 1,
+        "company": "Contrel Technology Co. Ltd",
+        "role": "Machine Learning Engineer",
+        "dates": "Jul 2023 – Present · Taiwan",
+        "summaryHtml": "• Developed &amp; deployed YOLO-based defect detection integrated with HALCON (80%+), with custom post-processing to reduce false positives/noise.<br>\n• Built &amp; optimized a C# inference pipeline using Microsoft.ML and ONNX Runtime for faster, more reliable positioning detection.<br>\n• Designed a LangChain-based multilingual chatbot (Simplified Chinese) to retrieve technical docs for operators (troubleshooting &amp; info lookup)."
+      },
+      {
+        "index": 2,
+        "company": "Robotic Lab, National Cheng Kung University (NCKU)",
+        "role": "Research Assistant",
+        "dates": "Jan 2021 – Jan 2023 · Tainan, Taiwan",
+        "summaryHtml": "• Curated lung CT datasets for NCKU Hospital (acquisition, cleaning, annotation) and built a comprehensive database for research/training.<br>\n• Developed deep learning models for lung tumor detection from CT scans.<br>\n• Implemented 3D reconstruction to visualize tumors and lungs for medical analysis."
+      },
+      {
+        "index": 3,
+        "company": "D-Soft, JSC",
+        "role": "Mobile Developer & ML Engineer",
+        "dates": "Jan 2019 – Jan 2020 · Danang, Vietnam",
+        "summaryHtml": "• Built FaceLog (Android) with FaceNet &amp; ANN; optimized real-time face recognition for mobile devices."
+      }
+    ],
+    "education": [
+      {
+        "index": 1,
+        "school": "National Cheng Kung University (NCKU), Taiwan",
+        "dates": "Jan 2021 – Jan 2023 · Tainan, Taiwan",
+        "summaryHtml": "Master of Computer Science (CSIE) — GPA: 3.96/4.5; Appreciation for NCKU Vietnamese Student Association (2021)."
+      },
+      {
+        "index": 2,
+        "school": "Danang University of Technology, Vietnam",
+        "dates": "Jan 2015 – Jan 2020 · Danang, Vietnam",
+        "summaryHtml": "B.Eng. in Electronic & Telecommunication Engineering — GPA: 3.65/4; Pioneer Scientific Research Club (2015–2020); Deputy leader, Electronic & Telecommunication Youth Union (2016–2019)."
+      }
+    ]
+  },
+  "publications": [
+    {
+      "year": "2025",
+      "items": [
+        {
+          "index": 1,
+          "title": "3D Interactive Segmentation for Lung Nodule Labeling",
+          "link": "#",
+          "authorsHtml": "Phong-Phu Le, <strong>Thanh-Long Nguyen</strong>, Chao-Chung Chang, Chia-Ying Lin, Yi-Ting Yen, Yaun Lin Tseng, Ching-Ting Tu, Jenn-Jier James Lien",
+          "venue": "CVGIP 2025 — August 2025",
+          "summary": "Method: iSegFormer + STCN; mNoC 9.1 @ 85% IoU, 12.4 @ 90% IoU on NCKUH dataset."
+        }
+      ]
+    }
+  ],
+  "portfolio": {
+    "projects": [
+      {
+        "index": 1,
+        "category": "Computer Vision",
+        "title": "Defect Detection in Wafer Manufacturing",
+        "thumbnail": {
+          "src": "./assets/images/DetectError.png",
+          "alt": "Wafer Defect Detection"
+        },
+        "descriptionHtml": "<p>Developed visual inspection pipelines for wafer manufacturing lines, including dataset curation and deep learning inference on edge devices.</p>",
+        "media": []
+      },
+      {
+        "index": 2,
+        "category": "Computer Vision",
+        "title": "C# ONNX Runtime Inference Pipeline and Robotic Control",
+        "thumbnail": {
+          "src": "./assets/images/Robotic.jpg",
+          "alt": "C# ONNX Runtime Inference Pipeline"
+        },
+        "descriptionHtml": "<p>Optimized ONNX Runtime integration in C# for real-time defect detection and model lifecycle automation.</p>",
+        "media": [
+          {
+            "type": "video",
+            "src": "./assets/images/Robotic.mp4",
+            "alt": "Control Robotic"
+          },
+          {
+            "type": "video",
+            "src": "./assets/images/Robotic2.mp4",
+            "alt": "Control Robotic2"
+          }
+        ]
+      },
+      {
+        "index": 3,
+        "category": "NLP",
+        "title": "Multilingual Docs Chatbot (LangChain, RAG)",
+        "thumbnail": {
+          "src": "./assets/images/RAG.jpeg",
+          "alt": "Multilingual Docs Chatbot (LangChain)"
+        },
+        "descriptionHtml": "<p>Retrieval-augmented QA system leveraging LangChain for multilingual corporate documents.</p>",
+        "media": [
+          {
+            "type": "image",
+            "src": "./assets/images/PDFGPT.jpg",
+            "alt": "PDFGPT"
+          },
+          {
+            "type": "video",
+            "src": "./assets/images/DemoVideo_PDFGPT_240528.mp4",
+            "alt": "PDFGPT2"
+          }
+        ]
+      },
+      {
+        "index": 4,
+        "category": "Machine Learning & Deep Learning",
+        "title": "Lung Tumor Detection & 3D Reconstruction",
+        "thumbnail": {
+          "src": "./assets/images/LungProject.jpg",
+          "alt": "Lung Tumor Detection & 3D Reconstruction"
+        },
+        "descriptionHtml": "<p>Deep-learning-assisted tumor detection, segmentation, and 3D reconstruction for surgical planning.</p>",
+        "media": [
+          {
+            "type": "image",
+            "src": "./assets/images/LungCancer2.jpg",
+            "alt": "application2"
+          },
+          {
+            "type": "image",
+            "src": "./assets/images/LungCancer3.jpg",
+            "alt": "application3"
+          },
+          {
+            "type": "image",
+            "src": "./assets/images/LungProject3.jpg",
+            "alt": "application4"
+          }
+        ]
+      },
+      {
+        "index": 5,
+        "category": "Computer Vision",
+        "title": "Augmented Reality (AR)",
+        "thumbnail": {
+          "src": "./assets/images/AR.png",
+          "alt": "Augmented Reality (AR)"
+        },
+        "link": "https://www.instagram.com/p/C0ZKdhdJcqmDK1S-SfBaZJtq2EQvOQGELWf85A0/",
+        "descriptionHtml": "<p>Interactive AR experience showcasing marker-based tracking and dynamic content placement.</p>",
+        "media": []
+      },
+      {
+        "index": 6,
+        "category": "Computer Vision",
+        "title": "Augmented Reality (AR)",
+        "thumbnail": {
+          "src": "./assets/images/AR2.jpg",
+          "alt": "Augmented Reality (AR)"
+        },
+        "link": "https://www.instagram.com/p/CXXlTqGFn3SOCjnTmLrrtJJCrIk0yTY0uka3Sw0/",
+        "descriptionHtml": "<p>Advanced AR prototype with animated overlays and real-world occlusion handling.</p>",
+        "media": []
+      },
+      {
+        "index": 7,
+        "category": "Computer Vision",
+        "title": "Omniverse Visualize",
+        "thumbnail": {
+          "src": "./assets/images/Omniverse.png",
+          "alt": "Omniverse"
+        },
+        "descriptionHtml": "<p>Create the Visualize Board in Omniverse and Error. Make the dataset</p>",
+        "media": []
+      },
+      {
+        "index": 8,
+        "category": "Machine Learning & Deep Learning",
+        "title": "Label and Training Application",
+        "thumbnail": {
+          "src": "./assets/images/LabelTrainingApp.png",
+          "alt": "Label Training Application"
+        },
+        "descriptionHtml": "<p>Create the application for the workers can label and training AI Model in Jetson.</p>",
+        "media": [
+          {
+            "type": "image",
+            "src": "./assets/images/LabelTrainingApp2.png",
+            "alt": "Label Training Application 2"
+          }
+        ]
+      },
+      {
+        "index": 9,
+        "category": "Machine Learning & Deep Learning",
+        "title": "Stopper Detection in C# ONNX Runtime",
+        "thumbnail": {
+          "src": "./assets/images/stopperdetection.png",
+          "alt": "Stopper Detection"
+        },
+        "descriptionHtml": "<p>YOLO detection for stopper inspection with a C# ONNX Runtime pipeline.</p>",
+        "media": [
+          {
+            "type": "image",
+            "src": "./assets/images/StopperDetection2.png",
+            "alt": "Stopper Detection 2"
+          }
+        ]
+      }
+    ]
+  },
+  "certificates": {
+    "forms": [
+      {
+        "index": 1,
+        "title": "C++ For C Programmers",
+        "from": "SoloLearn",
+        "descriptionHtml": "<p>Coverage of modern C++ constructs such as STL containers, iterators, and graph algorithms tailored for students with a C background.</p>",
+        "image": {
+          "src": "./assets/images/certificate_Cpp.jpg",
+          "alt": "Certificate - C++ For C Programmers"
+        }
+      },
+      {
+        "index": 2,
+        "title": "Machine Learning with Python",
+        "from": "Coursera - IBM",
+        "descriptionHtml": "<p>Hands-on labs with scikit-learn covering supervised and unsupervised learning, model evaluation, and deployment basics.</p>",
+        "image": {
+          "src": "./assets/images/placeholders/no-image-3x4.svg",
+          "alt": "Certificate - Machine Learning with Python"
+        }
+      }
+      
+    ]
+  },
+  "contact": {
+    "map": {
+      "src": "https://www.google.com/maps?q=22.992677,120.22829&z=18&output=embed",
+      "caption": "No. 2, Lane 86, Yidong Rd, East District, Tainan — Coordinates: 22.992677, 120.22829"
+    },
+    "email": {
+      "href": "mailto:tlong9648@gmail.com",
+      "label": "Contact"
+    },
+    "socials": {
+      "facebook": "https://www.facebook.com/long.nguyenthanh.10200",
+      "instagram": "https://www.instagram.com/longtony96/"
+    }
+  },
+  "footer": {
+    "copyrightHtml": "&copy; 2025 Nguyen Thanh Long"
+  }
+}
